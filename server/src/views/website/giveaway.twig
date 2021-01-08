@@ -1,0 +1,44 @@
+{% extends "../website.twig" %}
+
+{% block website_main %}
+    <main class="my-4">
+        <div class="container">
+            <h4>Giveaway</h4>
+
+            <p>
+                We are happy to announce that we are giving away {{ giveaway.amount }} copies of
+                <a href="{{ giveaway.game_url }}" target="_blank">{{ giveaway.game }}</a>!
+                You can enter the giveaway from {{ giveaway.start_date | date("d F") }}
+                at {{ giveaway.start_date | date("h:i") }} up to
+                {{ giveaway.end_date | date("d F") }} at {{ giveaway.end_date | date("h:i") }}.
+            </p>
+            {% if giveaway.start_date <= date and date < giveaway.end_date %}
+                <div class="mb-3">
+                    {% if not entered %}
+                        <form
+                            method="post"
+                            action="/giveaway/{{ giveaway.code }}/subscribe"
+                        >
+                            <button class="btn btn-primary" type="submit">
+                                Join Giveaway
+                            </button>
+                        </form>
+                    {% else %}
+                        <form
+                            method="post"
+                            action="/giveaway/{{ giveaway.code }}/unsubscribe"
+                        >
+                            <button class="btn btn-danger" type="submit">
+                                Leave Giveaway
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p>
+                    Giveaway is currently closed.
+                </p>
+            {% endif %}
+        </div>
+    </main>
+{% endblock %}

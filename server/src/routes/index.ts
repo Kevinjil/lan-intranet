@@ -4,7 +4,8 @@ import {
     getNickFromHostname,
     getUsername,
 } from '../data/names';
-import db, { dbAll, dbRun } from '../db';
+import db, { dbAll, dbGet, dbRun } from '../db';
+import { getLidnr } from '../data/gewis';
 import * as path from 'path';
 
 const router = Router();
@@ -13,12 +14,14 @@ router.use(async (req, res, next) => {
     const host = await getHostnameFromIp(req);
     const nick = await getNickFromHostname(host.name);
     const username = getUsername(nick, host.name);
+    const lidnr = getLidnr(req);
 
     res.locals.hostname = host.name;
     res.locals.fullHostname = host.full;
     res.locals.ip = host.ip;
     res.locals.nick = nick;
     res.locals.username = username;
+    res.locals.lidnr = lidnr;
 
     next();
 });
@@ -231,6 +234,82 @@ router.get('/paint/history', (req, res) => {
 router.get('/challenge', async (req, res) => {
     const challenges = await dbAll("SELECT id, game, best FROM challenge");
     res.render('website/challenge', { challenges });
+});
+
+router.get('/giveaway/:code([a-zA-Z0-9]+)', async (req, res) => {
+    let sql;
+
+    try {
+        sql = "SELECT id, game, game_url, code, start_date, end_date, amount FROM giveaways WHERE code = ?";
+        const giveaway = await dbGet(sql, [req.params.code]);
+        if (giveaway === undefined || res.locals.lidnr < 0) {
+            res.render('website/error');
+            return;
+        }
+        giveaway.start_date = new Date(giveaway.start_date);
+        giveaway.end_date = new Date(giveaway.end_date);
+
+        sql = 'SELECT COUNT(*) AS entered FROM giveaway_entries WHERE giveaway_id = ? AND lidnr = ?';
+        const entered = (await dbGet(sql, [giveaway.id, res.locals.lidnr])).entered
+        
+        res.render('website/giveaway', { giveaway, entered, date: new Date() });
+    } catch(error) {
+        console.log(error);
+        res.render('website/error');
+        return;
+    }
+});
+
+router.post('/giveaway/:code([a-zA-Z0-9]+)/subscribe', async (req, res) => {
+    try {
+        const lidnr = res.locals.lidnr;
+        const giveaway = await dbGet('SELECT id, start_date, end_date FROM giveaways WHERE code = ?', [
+            req.params.code
+        ]);
+        giveaway.start_date = new Date(giveaway.start_date);
+        giveaway.end_date = new Date(giveaway.end_date);
+
+        const date = new Date();
+        if (lidnr >= 0 && giveaway.start_date < date && date <= giveaway.end_date) {
+            await dbRun('INSERT INTO giveaway_entries (giveaway_id, lidnr) VALUES (?, ?)', [
+                giveaway.id,
+                lidnr,
+            ]);
+        }
+
+        // Return to giveaway page
+        res.redirect(`/giveaway/${req.params.code}`);
+    } catch(err) {
+        console.log(err);
+        res.render('website/error');
+        return;
+    }
+});
+
+router.post('/giveaway/:code([a-zA-Z0-9]+)/unsubscribe', async (req, res) => {
+    try {
+        const lidnr = res.locals.lidnr;
+        const giveaway = await dbGet('SELECT id, start_date, end_date FROM giveaways WHERE code = ?', [
+            req.params.code
+        ]);
+        giveaway.start_date = new Date(giveaway.start_date);
+        giveaway.end_date = new Date(giveaway.end_date);
+
+        const date = new Date();
+        if (lidnr >= 0 && giveaway.start_date < date && date <= giveaway.end_date) {
+            await dbRun('DELETE FROM giveaway_entries WHERE giveaway_id = ? AND lidnr = ?', [
+                giveaway.id,
+                lidnr,
+            ]);
+        }
+
+        // Return to giveaway page
+        res.redirect(`/giveaway/${req.params.code}`);
+    } catch (err) {
+        console.log(err);
+        res.render('website/error');
+        return;
+    }
 });
 
 export default router;

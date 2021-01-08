@@ -202,11 +202,44 @@ db.serialize(() => {
             'UNIQUE(login))'
     );
 
+    // Giveaways
+    db.run(
+        'CREATE TABLE IF NOT EXISTS giveaways ' +
+        '(id integer not null primary key autoincrement, ' +
+        'game varchar not null, ' +
+        'game_url varchar not null, ' +
+        'code varchar not null, ' +
+        'start_date integer not null, ' +
+        'end_date integer not null, ' +
+        'amount integer not null, ' +
+        'UNIQUE(code))'
+    );
+
+    db.run(
+        'CREATE TABLE IF NOT EXISTS giveaway_entries ' +
+        '(id integer not null primary key autoincrement, ' +
+        'giveaway_id not null, ' +
+        'lidnr integer not null, ' +
+        'FOREIGN KEY (giveaway_id) REFERENCES giveaways(id), ' +
+        'UNIQUE(giveaway_id, lidnr))' 
+    );
+
+    db.run(
+        'INSERT OR IGNORE INTO giveaways VALUES ' +
+        '(1, ' +
+        "'Among us', " +
+        "'https://store.steampowered.com/app/945360/Among_Us/', " +
+        "'aaaaaa', " +
+        "CURRENT_TIMESTAMP, " +
+        "CURRENT_TIMESTAMP, " +
+        "10)"
+    );
 
     // set the activities and challenge sequence correctly
     db.run('DELETE FROM sqlite_sequence');
     db.run("INSERT INTO sqlite_sequence VALUES ('activities', 7)");
     db.run("INSERT INTO sqlite_sequence VALUES ('challenge', 7)");
+    db.run("INSERT INTO sqlite_sequence VALUES ('givaways', 2)");
 
     db.run('COMMIT');
 });
